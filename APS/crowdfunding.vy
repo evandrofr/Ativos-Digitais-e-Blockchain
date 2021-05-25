@@ -1,10 +1,10 @@
-# Plataforma de crowdfunding v0.0.1
+# Plataforma de crowdfunding v1.0.0
 users: public(HashMap[address, uint256])
 
 # Endereço do dono do contrato
 owner: public(address)
 end: public(bool)
-meta: uint256
+meta: public(uint256)
 total: public(uint256)
 timeStart: public(uint256)
 timeEnd: public(uint256)
@@ -13,24 +13,36 @@ timeEnd: public(uint256)
 def __init__(meta: uint256, duration: uint256):
     self.owner = msg.sender
     self.meta = meta
-    self.total = 0
     self.end = False
+    self.total = 0
     self.timeStart = block.timestamp
-    self.timeEnd = self.timeStart + 60*duration
+    self.timeEnd = self.timeStart + 60*duration # Considerando o tempo em minutos
 
 @external
 @payable
-def donate(donation: uint256):
-    assert self.end == False
-    assert block.timestamp < self.timeEnd
-    self.users[msg.sender] += donation
-    self.total += donation
+def donate():
+    assert self.end == False, "Error: donations are finish"
+    assert block.timestamp < self.timeEnd, "Error: dotations time is finish"
+    
+    self.users[msg.sender] += msg.value
+    self.total += msg.value
     
 @external
 @payable
 def finish():
-    assert msg.sender == self.owner
-    assert block.timestamp > self.timeEnd
+    assert msg.sender == self.owner, "Error: you are not the owner"
+    assert block.timestamp > self.timeEnd, "Error: wait for the end time"
+    
     self.end = True
-    if (self.total >= self.meta):
+    if (self.balance >= self.meta):
         send(msg.sender, self.balance)
+        self.total = 0
+        
+@external
+def cancel():
+    assert self.end == True, "Error: the crowdfunding is not finished"
+    assert self.users[msg.sender] > 0, "Error: you don't have more donations"
+    
+    send(msg.sender, self.users[msg.sender])
+    self.total -= self.users[msg.sender]
+    self.users[msg.sender] = 0
